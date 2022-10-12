@@ -23,7 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Set, Dict, Tuple, Optional
 from warnings import warn
-
+from memory_profiler import profile
 import hashlib
 
 import lizard
@@ -168,10 +168,10 @@ class ModifiedFile:
         self._new_path = Path(new_path) if new_path is not None else None
         self.change_type = change_type
         self.diff = diff_and_sc["diff"]
-        # self.__source_code = diff_and_sc["source_code"]
-        # self.__source_code_before = diff_and_sc["source_code_before"]
-        # self.content = diff_and_sc["content"]
-        # self.content_before = diff_and_sc["content_before"]
+        self.__source_code = diff_and_sc["source_code"]
+        self.__source_code_before = diff_and_sc["source_code_before"]
+        self.content = diff_and_sc["content"]
+        self.content_before = diff_and_sc["content_before"]
 
         self._nloc = None
         self._complexity = None
@@ -682,6 +682,7 @@ class Commit:
         assert self._modified_files is not None
         return self._modified_files
 
+    @profile
     def _get_modified_files(self):
         options = {}
         if self._conf.get("histogram"):
@@ -725,10 +726,10 @@ class Commit:
 
             diff_and_sc = {
                 "diff": self._get_decoded_str(diff.diff),
-                # "source_code_before": self._get_decoded_sc_str(diff.a_blob),
-                # "source_code": self._get_decoded_sc_str(diff.b_blob),
-                # "content_before": self._get_decoded_sc_str(diff.a_blob),
-                # "content": self._get_decoded_sc_str(diff.b_blob),
+                "source_code_before": self._get_decoded_sc_str(diff.a_blob),
+                "source_code": self._get_decoded_sc_str(diff.b_blob),
+                "content_before": self._get_decoded_sc_str(diff.a_blob),
+                "content": self._get_decoded_sc_str(diff.b_blob),
             }
 
             modified_files_list.append(
@@ -749,15 +750,15 @@ class Commit:
             )
             return None
 
-    # def _get_decoded_sc_str(self, diff):
-    #     try:
-    #         return diff.data_stream.read().decode("utf-8", "ignore")
-    #     except (AttributeError, ValueError):
-    #         logger.debug(
-    #             "Could not load source code of a " "file in commit %s",
-    #             self._c_object.hexsha,
-    #         )
-    #         return None
+    def _get_decoded_sc_str(self, diff):
+        try:
+            return diff.data_stream.read().decode("utf-8", "ignore")
+        except (AttributeError, ValueError):
+            logger.debug(
+                "Could not load source code of a " "file in commit %s",
+                self._c_object.hexsha,
+            )
+            return None
 
     @property
     def in_main_branch(self) -> bool:
